@@ -1,0 +1,45 @@
+[project]
+name = "maci-evince-sim"
+version = "0.1.0"
+description = "Trainable PyTorch simulation of MACI/EVINCE multi-agent debate (arXiv:2409.01007)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.2",
+    "numpy>=1.26",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+modal = [
+    "modal>=0.64",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/maci_sim"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+# The validated source uses compact one-liners (`a(); b()`); keeping the
+# package byte-equivalent to it matters more than these style rules.
+ignore = ["E702", "E731", "F541"]
+
+[tool.ruff.lint.per-file-ignores]
+# Validated payloads kept verbatim (PLAN.md M1 + §4.2): do not churn them.
+"maci_evince_sim.py" = ["I001"]
+"train_chat_lm_modal.py" = ["I001", "F401"]
+"modal_app.py" = ["E401", "I001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

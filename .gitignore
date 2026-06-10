@@ -1,0 +1,16 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# experiment artifacts (committed samples live under results/)
+checkpoints/
+checkpoints*/
+results*.json
+
+# os
+.DS_Store
