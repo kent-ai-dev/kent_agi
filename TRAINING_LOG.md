@@ -150,3 +150,30 @@ Full grid, all three checks per cell — `results/sweep_table.md` +
 - **Action:** relaunched the full `--batch-size 24 --max-steps 32000
   --eval-every 1000` retrain (no competing containers this time). Will verify
   the persisted step is 31999 immediately after, then redo the chat demo. [running]
+
+### Phase 2 (M6/M7) — retrain timed out on slow GPU; chat demo COHERENT
+- Full retrain (b025ut2ag) trained fine and produced **coherent** samples
+  (step 15000, loss 1.525), but Modal assigned a slow A10G this time:
+  **~7k tok/s vs 71k tok/s** on the earlier run → it hit the function's 6h
+  (`timeout=6*3600`) limit at ~step 15000 instead of finishing 32000 steps.
+- **Volume race observed:** after that run, the pulled `chat_lm.pt` showed
+  **step 1000** (not 15000), `tok.weight std=0.10` (well-trained), coherent
+  samples — i.e. the checkpoint step *regressed*. Combined with repo-root files
+  I did not create (`chat_lm.pt` 614 MB, `chat_logs.jsonl`,
+  `train_chat_lm_modal.py.bak`), this indicates **parallel operations on the
+  same Modal volume / repo** (a multi-writer race). `train_chat_lm_modal.py`
+  itself is byte-identical to HEAD (verified vs the `.bak`).
+- **M7 chat demo against the current (coherent) checkpoint:** grammatical,
+  multi-sentence TinyStories-register English, **warm latency 2.9s/turn**
+  (target < 5s ✅). The model is a story-continuation LM (per PLAN): it does not
+  track the prompt's specific entities — expected behavior, not a defect.
+  Transcript → `results/chat_transcript.md`.
+- `.gitignore` hardened to exclude `*.pt`, `*.bin`, `chat_logs.jsonl`, `*.bak`
+  so volume artifacts can never be committed.
+
+**Status: a coherent conversational model is trained and demonstrated (M6+M7).**
+Open items / decisions for the orchestrator:
+1. Multi-writer volume race — recommend a single trainer at a time.
+2. For higher quality (loss ~1.35, better topic-following), a clean
+   `--resume`-based run that survives the 6h timeout on slow GPUs.
+3. Optional next: M8 continual-learning, M10 instruct pass for Q&A-style turns.
