@@ -177,3 +177,14 @@ Open items / decisions for the orchestrator:
 2. For higher quality (loss ~1.35, better topic-following), a clean
    `--resume`-based run that survives the 6h timeout on slow GPUs.
 3. Optional next: M8 continual-learning, M10 instruct pass for Q&A-style turns.
+
+### Coordination resolved — I own Phase 2 on maci-lm; Nex-N2 moved to maci-nex
+- Per Hermes: race resolved by separating volumes. Hermes runs Nex-N2
+  (math/code/agentic) on a new `maci-nex` volume + `/data/nex_checkpoint.pt`;
+  **I own PLAN.md Phase 2 (M6–M10) on `maci-lm`** (`/data/chat_lm.pt`).
+- Restored `train_chat_lm_modal.py` to **`gpu="A10G"`** on train/generate/finetune
+  (Hermes had switched it to T4, which caused my 7k tok/s timeout). Kept the
+  VRAM auto-cap and `weights_only=False` Hermes added.
+- **Launched a clean from-scratch A10G run** (`--batch-size 24 --max-steps 32000
+  --eval-every 1000`), overwriting the step-1000 checkpoint. Target: loss ~1.35,
+  ~92 min, full epoch. Then re-verify, redo chat demo, M8 continual-learning.
