@@ -132,3 +132,21 @@ Full grid, all three checks per cell — `results/sweep_table.md` +
   > "Once upon a time, there was a boy named Timmy. Timmy was very hungry, so he
   > went to his mommy and said, 'Mommy, my tummy hurts. Can we go to the
   > doctor?' His mommy said yes and they went to the doctor..."
+
+### Phase 2 (M7) — chat demo gibberish → checkpoint persistence bug FOUND & FIXED
+- First chat demo (`scripts/chat_demo.py`, completion-style, headless driver for
+  the interactive `chat()` REPL) returned **gibberish** (random rare tokens) on
+  every turn, despite training-time samples being coherent.
+- Diagnosed by pulling the checkpoint and inspecting locally
+  (`scripts/diag_local.py`): **`/data/chat_lm.pt` was step 0** — `tok.weight`
+  AND `block0.attn` both at std=0.0200 (the init std). I.e. the random-init
+  checkpoint, not the trained one. The 92-min run's trained weights (loss 1.35)
+  **never persisted to the volume.**
+- Most likely cause: the OOM'd attempt-1 also saved/committed a step-0
+  checkpoint; its commit landed late (Modal volume eventual consistency) and
+  clobbered attempt-2's final commit. No code bug — confirmed by:
+- **Canary** (`::train --max-steps 30 --eval-every 10`): pulled checkpoint had
+  **step 29**, std drifted 0.02000 → 0.02124 → save/commit path works correctly.
+- **Action:** relaunched the full `--batch-size 24 --max-steps 32000
+  --eval-every 1000` retrain (no competing containers this time). Will verify
+  the persisted step is 31999 immediately after, then redo the chat demo. [running]
