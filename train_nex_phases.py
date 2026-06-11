@@ -12,9 +12,12 @@ from modal import App, Image, Volume, gpu
 # Modal config
 # ----------------------------------------------------------------------------
 app = App("kent-agi-nex-training")
-vol = Volume.from_name("maci-lm", create_if_missing=True)
+vol = Volume.from_name("maci-nex", create_if_missing=True)
+vol_base = Volume.from_name("maci-lm", create_if_missing=True)
 DATA = "/data"
-CKPT_PATH = f"{DATA}/chat_lm.pt"
+DATA_BASE = "/data_base"
+CKPT_PATH = f"{DATA}/nex_checkpoint.pt"
+CKPT_BASE_PATH = f"{DATA_BASE}/chat_lm.pt"
 RESULTS_PATH = f"{DATA}/training_results.jsonl"
 
 image = (
@@ -49,26 +52,63 @@ def load_mbpp(split="train", max_samples=None):
         texts.append(text)
     return texts
 
-def load_synthetic_agentic(n=10000):
-    """Generate synthetic terminal trajectories."""
+def load_synthetic_agentic(n=15000):
+    """Generate synthetic terminal trajectories with diverse tool-use."""
     commands = [
-        ("ls -la", "drwxr-xr-x 5 user user 4096 Jun 11 .\n"),
-        ("pwd", "/home/user/project\n"),
-        ("git status", "On branch main\nnothing to commit, working tree clean\n"),
+        # File operations
+        ("ls -la", "drwxr-xr-x 5 user user 4096 Jun 11 .\ndrwxr-xr-x 3 user user 4096 ..\n-rw-r--r-- 1 user user  220 README.md\n"),
+        ("cat README.md", "# Project\nThis is a test project for trading research.\n\n## Setup\nRun `pip install -r requirements.txt`\n"),
+        ("touch new_file.txt", ""),
+        ("mkdir data", ""),
+        ("rm old_file.txt", ""),
+        ("mv file.txt archive/", ""),
+        ("cp config.yaml config.yaml.bak", ""),
+        # Git operations
+        ("git status", "On branch main\nYour branch is up to date with 'origin/main'.\n\nnothing to commit, working tree clean\n"),
+        ("git log --oneline -5", "a1b2c3d feat: add backtest engine\n9f8e7d6 fix: stop loss calculation\n4a5b6c7 docs: update README\n"),
+        ("git add .", ""),
+        ("git commit -m 'feat: new strategy'", "[main 1234567] feat: new strategy\n 2 files changed, 50 insertions(+), 10 deletions(-)\n"),
+        ("git push origin main", "Enumerating objects: 15, done.\nWriting objects: 100% (15/15), 2.1 KiB | 2.1 MiB/s, done.\n"),
+        # Python REPL
         ("python3 -c 'print(2+2)'", "4\n"),
-        ("df -h", "Filesystem Size Used Avail Use%\n/dev/sda1 100G 20G 80G 20%\n"),
-        ("cat README.md", "# Project\nThis is a test project.\n"),
-        ("pip install numpy", "Successfully installed numpy-1.24.0\n"),
-        ("curl -s https://api.github.com/users/octocat", '{"login":"octocat"}\n'),
+        ("python3 -c 'import numpy; print(numpy.random.randn(3))'", "[ 0.123 -0.456  0.789]\n"),
+        ("python3 -c 'import pandas; df = pandas.DataFrame({\"A\": [1,2,3]}); print(df.mean())'", "A    2.0\ndtype: float64\n"),
+        ("python3 script.py", "Loading data...\nComputing signals...\nBacktest complete. Sharpe: 1.23\n"),
+        # System info
+        ("df -h", "Filesystem Size Used Avail Use%\n/dev/sda1 100G 20G 80G 20%\n/dev/sdb1 500G 300G 200G 60%\n"),
+        ("free -h", "              total        used        free\nMem:          16Gi       8.2Gi       7.8Gi\n"),
+        ("uptime", " 14:32:01 up 5 days,  2:15,  1 user,  load average: 0.45, 0.38, 0.30\n"),
+        ("ps aux | grep python", "user    1234  0.5  2.1  23456  8901 ?  Ss 14:00  0:10 python3 main.py\n"),
+        # Package management
+        ("pip install numpy pandas", "Successfully installed numpy-1.24.0 pandas-2.0.0\n"),
+        ("pip list | grep torch", "torch                  2.4.0\ntorchvision            0.19.0\n"),
+        ("python3 -m pip freeze > requirements.txt", ""),
+        # Network/API calls
+        ("curl -s https://api.github.com/users/octocat", '{"login":"octocat","id":583231","type":"User"}\n'),
+        ("curl -s https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", '{"bitcoin":{"usd":67500.00}}\n'),
+        ("wget https://example.com/data.csv", "Resolving example.com... 93.184.216.34\nHTTP request sent, awaiting response... 200 OK\nSaving to: data.csv\n"),
+        # Docker/container
+        ("docker ps", "CONTAINER ID  IMAGE          COMMAND       CREATED        STATUS\nabc123def456  trading:latest \"/bin/bash\"   2 hours ago    Up 2 hours\n"),
+        ("docker build -t trading .", "Sending build context to Docker daemon  12.3MB\nSuccessfully built abc123def456\n"),
+        # Trading-specific
+        ("python3 -c 'import yfinance as yf; data = yf.download(\"AAPL\", period=\"5d\"); print(data.tail())'", "                 Open   High    Low  Close    Volume\nDate\n2026-06-07  210.50 212.30 209.80 211.40  45678900\n2026-06-08  211.40 213.10 210.90 212.80  52345600\n"),
+        ("python3 backtest.py --config config.yaml", "Loading config...\nDownloading data for 55 symbols...\nRunning backtest...\nTotal return: -3.70%\nSharpe: -0.62\n"),
+        # Modal/cloud
+        ("modal app list", "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n┃ App ID                    ┃ Description  ┃ State   ┃ Tasks ┃\n┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩\n│ ap-abc123                 │ training     │ running │ 1     │\n"),
+        ("modal volume ls maci-lm", "chat_lm.pt\nchat_logs.jsonl\n"),
+        # Hermes/AI assistant specific
+        ("hermes status", "Hermes Agent v2.1.172\nProfile: default\nBridges: 7 active\n"),
+        ("hermes bridge list", " gemini-snap-flash  : port 8131\n trading-desk       : port 8132\n wheel              : port 8133\n ofa                : port 8140\n ken_alpaca         : port 8141\n kalshi-trader      : port 8142\n kent-agi           : port 8143\n"),
     ]
+    
     texts = []
     for _ in range(n):
-        traj_len = random.randint(3, 8)
+        traj_len = random.randint(3, 10)
         traj = []
         for _ in range(traj_len):
             cmd, out = random.choice(commands)
             traj.append(f"<obs>{cmd}</obs>")
-            traj.append(f"<think>I'll execute {cmd.split()[0]}.</think>")
+            traj.append(f" thinkingThe user wants me to execute {cmd.split()[0]}. I'll run it and report the output. thinking")
             traj.append(f"<act>{out.strip()}</act>")
         texts.append("\n".join(traj) + "\n")
     return texts
@@ -121,9 +161,10 @@ def create_mixed_dataset(enc, block_size=512, samples_per_phase=5000):
     agentic_texts = load_synthetic_agentic(samples_per_phase)
     adaptive_texts = load_adaptive_gate(samples_per_phase)
     
-    # Mix ratios: 35% math, 30% code, 25% agentic, 10% adaptive
+    # Mix ratios: 25% math, 25% code, 35% agentic, 15% adaptive
+    # Agentic/tool-use emphasized per user request
     all_texts = []
-    ratios = [0.35, 0.30, 0.25, 0.10]
+    ratios = [0.25, 0.25, 0.35, 0.15]
     phases = [math_texts, code_texts, agentic_texts, adaptive_texts]
     
     # Interleave
@@ -251,7 +292,7 @@ def build_model_classes():
 # ----------------------------------------------------------------------------
 # Training
 # ----------------------------------------------------------------------------
-@app.function(image=image, gpu=gpu.T4(), timeout=3600, volumes={DATA: vol})
+@app.function(image=image, gpu=gpu.T4(), timeout=3600, volumes={DATA: vol, DATA_BASE: vol_base})
 def train_nex_phases(total_steps=18000, batch_size=64, block_size=512, lr=3e-4, 
                      warmup=500, save_every=1000, eval_every=1000):
     import torch
@@ -265,11 +306,11 @@ def train_nex_phases(total_steps=18000, batch_size=64, block_size=512, lr=3e-4,
                     n_embd=512, dropout=0.0)
     model = GPT(cfg).to("cuda")
     
-    # Load base checkpoint
-    if os.path.exists(CKPT_PATH):
-        ck = torch.load(CKPT_PATH, map_location="cuda", weights_only=False)
+    # Load base checkpoint from maci-lm (separate volume, read-only)
+    if os.path.exists(CKPT_BASE_PATH):
+        ck = torch.load(CKPT_BASE_PATH, map_location="cuda", weights_only=False)
         model.load_state_dict(ck["model"])
-        print(f"Loaded base checkpoint from {CKPT_PATH}")
+        print(f"Loaded base checkpoint from {CKPT_BASE_PATH}")
     else:
         print("WARNING: No base checkpoint found, training from scratch!")
     

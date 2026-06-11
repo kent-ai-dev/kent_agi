@@ -196,12 +196,12 @@ def prepare_data(max_stories: int = 0):
 # 2) train — from-scratch pretraining (~2-4 h on A10G for one epoch)
 # ----------------------------------------------------------------------------
 
-@app.function(image=image, gpu="T4", timeout=6 * 3600, volumes={DATA: vol})
+@app.function(image=image, gpu="A10G", timeout=6 * 3600, volumes={DATA: vol})
 def train(max_steps: int = 14000, batch_size: int = 24, lr: float = 6e-4,
           eval_every: int = 500, resume: bool = False):
-    """Defaults ≈ one pass over ~400M tokens:
-    14k steps * 24 seqs * 512 tokens ≈ 172M tokens seen.
-    T4 is cheaper; batch_size 24 is safe for 16 GB VRAM with this model."""
+    """A10G ≈ 71k tok/s with batch_size 24: a full epoch (32k steps ×
+    24 × 512 ≈ 393M tokens) finishes in ~92 min, well under the 6h timeout.
+    The VRAM auto-cap below keeps batch_size safe on smaller GPUs too."""
     import numpy as np
     import torch
 
@@ -285,7 +285,7 @@ def sample(model, prompt: str, dev: str, max_new: int = 120) -> str:
 # 3) chat — remote generation + local REPL; every turn is logged to the volume
 # ----------------------------------------------------------------------------
 
-@app.function(image=image, gpu="T4", timeout=600, volumes={DATA: vol},
+@app.function(image=image, gpu="A10G", timeout=600, volumes={DATA: vol},
               scaledown_window=300)
 def generate_remote(prompt: str, max_new: int = 160,
                     temperature: float = 0.8) -> str:
@@ -334,7 +334,7 @@ def chat():
 # 4) finetune_on_chats — the "it learns" loop (run nightly / on demand)
 # ----------------------------------------------------------------------------
 
-@app.function(image=image, gpu="T4", timeout=1800, volumes={DATA: vol})
+@app.function(image=image, gpu="A10G", timeout=1800, volumes={DATA: vol})
 def finetune_on_chats(steps: int = 300, lr: float = 5e-5,
                       batch_size: int = 16):
     """Weight updates from logged conversations. Low LR + few steps to nudge
