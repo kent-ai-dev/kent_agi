@@ -12,5 +12,12 @@ checkpoints/
 checkpoints*/
 results*.json
 
+# model checkpoints, packed token data, chat logs — these live in Modal
+# volumes and may get pulled into the working tree; never commit them.
+*.pt
+*.bin
+chat_logs.jsonl
+*.bak
+
 # os
 .DS_Store

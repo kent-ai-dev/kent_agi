@@ -244,7 +244,7 @@ def train(max_steps: int = 14000, batch_size: int = 24, lr: float = 6e-4,
     scaler = torch.amp.GradScaler("cuda")
     step0 = 0
     if resume and os.path.exists(CKPT_PATH):
-        ck = torch.load(CKPT_PATH, map_location=dev)
+        ck = torch.load(CKPT_PATH, map_location=dev, weights_only=False)
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"])
         step0 = ck["step"]
         print(f"resumed at step {step0}")
@@ -292,7 +292,7 @@ def generate_remote(prompt: str, max_new: int = 160,
     import tiktoken
     import torch
     GPT = build_model_classes()
-    ck = torch.load(CKPT_PATH, map_location="cuda")
+    ck = torch.load(CKPT_PATH, map_location="cuda", weights_only=False)
     model = GPT(GPTConfig(**ck["cfg"])).to("cuda")
     model.load_state_dict(ck["model"])
     enc = tiktoken.get_encoding("gpt2")
@@ -305,6 +305,13 @@ def generate_remote(prompt: str, max_new: int = 160,
                             "reply": text}) + "\n")
     vol.commit()
     return text.strip()
+
+
+@app.local_entrypoint()
+def test(prompt: str = "Once upon a time", max_new: int = 60):
+    print("\nPROMPT:", prompt)
+    reply = generate_remote.remote(prompt, max_new=max_new)
+    print("RESPONSE:", reply)
 
 
 @app.local_entrypoint()
@@ -353,7 +360,7 @@ def finetune_on_chats(steps: int = 300, lr: float = 5e-5,
     if len(chat_data) < 2048:
         print("not enough chat data to learn from yet"); return
 
-    ck = torch.load(CKPT_PATH, map_location="cuda")
+    ck = torch.load(CKPT_PATH, map_location="cuda", weights_only=False)
     cfg = GPTConfig(**ck["cfg"])
     model = GPT(cfg).to("cuda"); model.load_state_dict(ck["model"])
     opt = torch.optim.AdamW(model.parameters(), lr=lr)
