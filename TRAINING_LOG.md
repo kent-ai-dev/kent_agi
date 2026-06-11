@@ -109,3 +109,26 @@ Committed `results/sample_results.json` (seed 7) — commit `ccf231e`.
 - Attempt 2 (CLI flags only, no file edits): `--batch-size 24 --max-steps
   32000 --eval-every 1000` ≈ one epoch (~393M tokens), est. peak ~12 GiB.
   **Running.** Final loss + sample coherence to be recorded on completion.
+
+### Phase 1 (M3) — sweep table COMPLETE (local CPU, scripts/sweep.py)
+Full grid, all three checks per cell — `results/sweep_table.md` +
+`results/sweep/*.json`:
+
+- **Check 1 (debate > best single): 9/9 PASS**
+- **Check 2 (moderated agreement > fixed-κ): 9/9 PASS**
+- **Check 3 (wrong-repeat decays): 9/9 PASS**
+- Acceptance was C1&C3 ≥8/9, C2 ≥7/9 → **exceeded on all three.**
+- Gap vs overlap: +0.038 (0.3) → +0.064 (0.45) → +0.089 (0.6) →
+  **CONFIRMED**: collaboration gap grows monotonically with task overlap.
+
+### Phase 2 (M6) — train COMPLETE ✅
+- A10G, batch_size=24, max_steps=32000, eval_every=1000. **Finished in 92 min.**
+- Throughput steady ~71–72k tok/s. Checkpoint → `/data/chat_lm.pt` (`maci-lm`).
+- **Final train loss ≈ 1.33–1.37** (per-step, noisy; converged ~step 17k) —
+  **well under the ≤1.9 acceptance threshold.**
+- Sample coherence (M6 acceptance): periodic "Once upon a time" completions are
+  grammatical, multi-sentence, causally consistent stories with stable
+  characters (Lily, Timmy, etc.). **M6 acceptance MET.** Example (step 26000):
+  > "Once upon a time, there was a boy named Timmy. Timmy was very hungry, so he
+  > went to his mommy and said, 'Mommy, my tummy hurts. Can we go to the
+  > doctor?' His mommy said yes and they went to the doctor..."
