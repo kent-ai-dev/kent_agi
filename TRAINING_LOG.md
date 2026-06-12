@@ -203,3 +203,30 @@ Open items / decisions for the orchestrator:
   bear, the owl, Mia) across 5 turns. **Warm 2.8s/turn** (<5s). Replies stay
   on-topic with the prompt narrative — M7 acceptance MET.
   → `results/chat_transcript.md`.
+
+### Phase 2 (M8) — continual learning DEMONSTRATED ✅
+- Seeded 2515 tokens about a distinctive, TinyStories-rare topic (astronaut Pip
+  → rocket → Mars) into `chat_logs.jsonl`; ran `finetune_on_chats` (300 steps,
+  lr 5e-5, **25% replay** — alternating loss ~1.4 on replay vs ~0.02 on seed
+  confirms replay active).
+- **Unconditional topic mentions: 0 → 173; samples mentioning topic: 0/24 →
+  15/24.** Per-word e.g. pip 0→47, rocket 0→42, astronaut 0→27, Mars 0→13.
+- **Forgetting probe** (off-topic TinyStories-register sentences): mean loss
+  2.151 → 2.173 (**Δ +0.022 ≤ 0.15** bound → PASS). 9/24 after-samples are still
+  ordinary TinyStories → replay preserved diversity, no catastrophic forgetting.
+- Artifacts: `results/learning_before_after.md`, `scripts/continual_learning_demo.py`.
+
+---
+
+## SUMMARY — Phase 1 complete; Phase 2 M6/M7/M8 complete
+- **Phase 1 (M3/M4):** all EVINCE thesis checks PASS; sweep 9/9 on all three;
+  gap grows with overlap (CONFIRMED). `results/sample_results.json`,
+  `results/sweep_table.md`.
+- **Phase 2 (M6):** from-scratch 51M GPT on TinyStories, **train loss 1.336**,
+  coherent. **M7:** chat coherent + on-topic, **2.8s/turn** warm. **M8:**
+  continual learning demonstrated (topic adoption + retention).
+- Conversational model checkpoint: `/data/chat_lm.pt` in the `maci-lm` volume
+  (now the M8-finetuned weights). Chat via `modal run
+  train_chat_lm_modal.py::chat` or `scripts/chat_demo.py`.
+- Remaining (PLAN.md): **M9** (generative MACI debate — needs new code) and
+  **M10** (instruct pass for Q&A-style chat).
