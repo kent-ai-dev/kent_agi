@@ -188,3 +188,18 @@ Open items / decisions for the orchestrator:
 - **Launched a clean from-scratch A10G run** (`--batch-size 24 --max-steps 32000
   --eval-every 1000`), overwriting the step-1000 checkpoint. Target: loss ~1.35,
   ~92 min, full epoch. Then re-verify, redo chat demo, M8 continual-learning.
+
+### Phase 2 (M6) — clean A10G run COMPLETE ✅ (loss 1.336, step 31999 verified)
+- A10G @ **74k tok/s**, 32000 steps in **88 min**. Final train loss **1.336**.
+- **Checkpoint persisted correctly: step 31999** (pulled & inspected; tok.weight
+  std 0.155, block0.attn std 0.044 — well-trained). No race (Hermes on maci-nex).
+- Local samples track the prompt: *"The robot wanted to learn how to paint, so
+  he asked the little girl to help him ... she got her paints and paper and
+  started to paint the robot."* M6 acceptance MET (loss ≤1.9, coherent).
+
+### Phase 2 (M7) — chat transcript regenerated on the loss-1.34 model ✅
+- `scripts/chat_demo.py` vs step-31999 checkpoint: maintains the
+  Beep-robot-learns-to-paint narrative with consistent characters (Beep, the
+  bear, the owl, Mia) across 5 turns. **Warm 2.8s/turn** (<5s). Replies stay
+  on-topic with the prompt narrative — M7 acceptance MET.
+  → `results/chat_transcript.md`.
